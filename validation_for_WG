@@ -1,0 +1,91 @@
+import twobitreader, re, time, math, sys, pandas, Bio
+import subprocess as sp
+from tqdm import tqdm
+from Bio import Seq
+
+
+start_time = time.time()
+
+
+path = "/home/shan/cas9cpf1/ref/genome.2bit"
+WGS = twobitreader.TwoBitFile(path)
+
+chr_name = "chr21"
+candidate_file = open("/home/shan/cas9cpf1/atac_open_finder/candidate_seq/"+chr_name+"_candidate_sequence","r")
+candidate_sequence_str = candidate_file.readline()
+
+
+# data_list = candidate_sequence_str.split(',')
+
+# for i in range(1, len(data_list), 2):
+#     data_list[i] = '"' + data_list[i]
+
+# formatted_data = ','.join(data_list)
+
+# formatted_data = formatted_data.replace('[', '["').replace(',"','",')
+
+# foratted_data_out = open(chr_name+"_candidate_sequence_formatted","w")
+# foratted_data_out.write(formatted_data)
+# foratted_data_out.close()
+
+candidate_sequence_list = eval(candidate_sequence_str)
+
+keep_chr = ['chr' + str(i) for i in range(1, 23)]
+keep_chr.append('chrX')
+
+for i in tqdm(range(len(keep_chr))):
+    target_seq = []
+
+    if i == 0:
+        buffer = candidate_sequence_list
+        print("buffer to be compared: ", len(buffer))
+
+    chromosome = keep_chr[i]
+    if chromosome != chr_name:
+        length = len(WGS[chromosome])
+        chromosome_sequence = WGS[chromosome][0:length]
+        chromosome_sequence_rev = Seq.reverse_complement(chromosome_sequence)
+
+        for candidate in tqdm(buffer):
+            target_str = candidate[0][4:24]
+            first_index = chromosome_sequence.find(target_str)
+            first_index_rev = chromosome_sequence_rev.find(target_str)
+
+            if (first_index == -1) and (first_index_rev == -1):
+                target_seq.append([candidate[0],candidate[1],chr_name])
+
+        buffer = []
+        buffer = target_seq
+    print("length of buffer: ", len(buffer))
+
+if buffer == target_seq:
+    print('yes')
+print(target_seq)
+
+
+
+fw1 = open("/home/shan/cas9cpf1/atac_open_finder/target/"+chr_name+"_target_sequence","w")
+fw1.write("[")
+write_string = ""
+
+for i in range(len(target_seq)):
+    write_string += '["'
+    write_string += target_seq[i][0]
+    write_string += '",'
+    write_string += str(target_seq[i][1])
+    write_string += ',"'
+    write_string += target_seq[i][2]
+    write_string += '"]'
+
+    if i != len(target_seq)-1:
+        write_string += ","
+
+fw1.write(write_string)
+fw1.write("]")
+fw1.close()
+
+
+end_time = time.time()
+execution_time = end_time - start_time
+
+print(f"Run time: {execution_time:.5f}s")
